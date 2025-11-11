@@ -19,6 +19,30 @@ A self-hosted Platform as a Service (PaaS) that runs entirely on your local mach
   <p><em>Real-time deployment logs</em></p>
 </div>
 
+## How It Works
+
+```mermaid
+graph LR
+    A[🖱️ Click Deploy] --> B[📦 Clone from GitHub]
+    B --> C{🔍 Detect Project Type}
+    C -->|Node.js/Vite| D1[⚙️ Generate Dockerfile]
+    C -->|Python/Flask| D1
+    C -->|Go| D1
+    C -->|Has Dockerfile| D2[📄 Use Existing]
+    D1 --> E[🏗️ Docker Build]
+    D2 --> E
+    E --> F[🐳 Start Container]
+    F --> G[🌐 Traefik Routes Traffic]
+    G --> H[✨ Live at subdomain.localhost]
+
+    style A fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
+    style H fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+    style G fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff
+    style E fill:#3b82f6,stroke:#2563eb,stroke-width:2px,color:#fff
+```
+
+**In 30 seconds:** GitHub repo → Auto-detected build → Running at `yourapp.localhost` ⚡
+
 ## Features
 
 - **GitHub Integration**: Connect repositories via OAuth and deploy with one click
