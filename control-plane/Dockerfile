@@ -6,13 +6,16 @@ WORKDIR /app
 RUN apk add --no-cache git
 
 # Copy package files
-COPY package*.json ./
+COPY control-plane/package*.json ./
 
 # Install dependencies
 RUN npm ci --only=production
 
 # Copy application files
-COPY . .
+COPY control-plane/ .
+
+# Copy dashboard files to public directory
+COPY dashboard/ ./public
 
 # Expose port
 EXPOSE 3000

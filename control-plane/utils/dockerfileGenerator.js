@@ -27,26 +27,73 @@ function generateDockerfile(repoPath, projectType) {
     case 'nodejs':
       const packageJson = JSON.parse(fs.readFileSync(path.join(repoPath, 'package.json'), 'utf8'));
       const hasYarnLock = fs.existsSync(path.join(repoPath, 'yarn.lock'));
+      const hasBuildScript = packageJson.scripts?.build;
 
-      dockerfile = `FROM node:20-alpine
+      // Check if it's a Vite/static build app
+      const allDeps = {
+        ...packageJson.dependencies,
+        ...packageJson.devDependencies
+      };
+      const isViteApp = allDeps?.vite || allDeps?.['@vitejs/plugin-react'] || allDeps?.['@vitejs/plugin-vue'];
+      const isStaticBuildApp = isViteApp || allDeps?.['create-react-app'] || allDeps?.['next'];
+
+      if (isViteApp && hasBuildScript) {
+        // Vite app - build and serve static files
+        dockerfile = `FROM node:20-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
 ${hasYarnLock ? 'COPY yarn.lock ./\n' : ''}
 
-RUN ${hasYarnLock ? 'yarn install --frozen-lockfile' : 'npm ci --only=production'}
+RUN ${hasYarnLock ? 'yarn install --frozen-lockfile' : 'npm ci'}
 
 COPY . .
 
-${packageJson.scripts?.build ? 'RUN ' + (hasYarnLock ? 'yarn build' : 'npm run build') + '\n' : ''}
+RUN ${hasYarnLock ? 'yarn build' : 'npm run build'}
+
+# Install serve to host the static files
+RUN npm install -g serve
+
+EXPOSE 3000
+
+# Serve the dist folder (common for Vite)
+CMD ["serve", "-s", "dist", "-l", "3000"]
+`;
+      } else {
+        // Regular Node.js app
+        dockerfile = `FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+${hasYarnLock ? 'COPY yarn.lock ./\n' : ''}
+
+RUN ${hasYarnLock ? 'yarn install --frozen-lockfile' : (hasBuildScript ? 'npm ci' : 'npm ci --only=production')}
+
+COPY . .
+
+${hasBuildScript ? 'RUN ' + (hasYarnLock ? 'yarn build' : 'npm run build') + '\n' : ''}
 EXPOSE 3000
 
 CMD ["${hasYarnLock ? 'yarn' : 'npm'}", "start"]
 `;
+      }
       break;
 
     case 'python':
+      // Check if Flask/FastAPI exists in requirements
+      let cmd = '["python", "app.py"]';
+      const requirementsPath = path.join(repoPath, 'requirements.txt');
+      if (fs.existsSync(requirementsPath)) {
+        const requirements = fs.readFileSync(requirementsPath, 'utf8').toLowerCase();
+        if (requirements.includes('flask')) {
+          cmd = '["python", "-m", "flask", "run", "--host=0.0.0.0"]';
+        } else if (requirements.includes('fastapi') || requirements.includes('uvicorn')) {
+          cmd = '["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]';
+        }
+      }
+
       dockerfile = `FROM python:3.11-slim
 
 WORKDIR /app
@@ -57,8 +104,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 8000
+ENV FLASK_APP=app.py
+ENV FLASK_RUN_HOST=0.0.0.0
 
-CMD ["python", "app.py"]
+CMD ${cmd}
 `;
       break;
 

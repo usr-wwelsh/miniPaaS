@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS deployments (
     docker_container_id VARCHAR(255),
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_deployments_project ON deployments(project_id);

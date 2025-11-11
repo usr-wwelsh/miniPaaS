@@ -5,7 +5,12 @@ node_modules/
 build_cache/
 traefik/logs/*.log
 control-plane/tmp/
+control-plane/node_modules/
 .vscode/
 *.swp
 *.swo
 postgres_data/
+
+# Cloned repos and build artifacts
+/tmp/builds/
+tmp/builds/

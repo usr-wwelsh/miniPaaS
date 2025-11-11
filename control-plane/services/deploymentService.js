@@ -24,7 +24,7 @@ async function startContainer(deploymentId, projectId, imageName, subdomain, env
         'minipaas.deployment.id': deploymentId.toString()
       },
       HostConfig: {
-        NetworkMode: 'minipaas_paas_network',
+        NetworkMode: '1minipaas_paas_network',
         RestartPolicy: {
           Name: 'unless-stopped'
         }

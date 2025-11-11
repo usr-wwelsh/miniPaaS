@@ -44,7 +44,9 @@ services:
       retries: 5
 
   control-plane:
-    build: ./control-plane
+    build:
+      context: .
+      dockerfile: ./control-plane/Dockerfile
     ports:
       - "3000:3000"
     environment:
@@ -57,10 +59,7 @@ services:
       NODE_ENV: development
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./control-plane:/app
-      - /app/node_modules
       - build_cache:/tmp/builds
-      - ./dashboard:/app/public
     networks:
       - paas_network
     labels:
