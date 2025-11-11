@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>miniPaaS - Dashboard</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-content">
+                <div class="nav-brand">
+                    <h1>miniPaaS</h1>
+                </div>
+                <div class="nav-menu">
+                    <a href="/" class="nav-link active">Projects</a>
+                    <div class="nav-user" id="userMenu">
+                        <span id="username"></span>
+                        <button class="btn-text" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="page-header">
+                <div>
+                    <h2 class="page-title">Your Projects</h2>
+                    <p class="page-subtitle">Manage and deploy your applications</p>
+                </div>
+                <button class="btn btn-primary" onclick="showNewProjectModal()">New Project</button>
+            </div>
+
+            <div id="projectsGrid" class="projects-grid">
+                <div class="loading">Loading projects...</div>
+            </div>
+        </div>
+    </main>
+
+    <div id="newProjectModal" class="modal">
+        <div class="modal-overlay" onclick="closeNewProjectModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Project</h3>
+                <button class="modal-close" onclick="closeNewProjectModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="newProjectForm" onsubmit="createProject(event)">
+                    <div class="form-group">
+                        <label>GitHub Repository</label>
+                        <select id="repoSelect" class="form-control" required>
+                            <option value="">Loading repositories...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Project Name</label>
+                        <input type="text" id="projectName" class="form-control" required placeholder="my-awesome-app">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Subdomain</label>
+                        <div class="input-group">
+                            <input type="text" id="subdomain" class="form-control" required placeholder="myapp">
+                            <span class="input-addon">.localhost</span>
+                        </div>
+                        <small class="form-hint">Your app will be accessible at subdomain.localhost</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Branch</label>
+                        <input type="text" id="branch" class="form-control" value="main" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Port</label>
+                        <input type="number" id="port" class="form-control" value="3000" required>
+                        <small class="form-hint">Port your application runs on</small>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeNewProjectModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="projectDetailModal" class="modal">
+        <div class="modal-overlay" onclick="closeProjectDetail()"></div>
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="projectDetailTitle">Project Details</h3>
+                <button class="modal-close" onclick="closeProjectDetail()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab-button active" onclick="switchTab('overview')">Overview</button>
+                    <button class="tab-button" onclick="switchTab('logs')">Logs</button>
+                    <button class="tab-button" onclick="switchTab('analytics')">Analytics</button>
+                    <button class="tab-button" onclick="switchTab('env')">Environment</button>
+                    <button class="tab-button" onclick="switchTab('settings')">Settings</button>
+                </div>
+
+                <div id="tabContent">
+                    <div id="overviewTab" class="tab-content active"></div>
+                    <div id="logsTab" class="tab-content"></div>
+                    <div id="analyticsTab" class="tab-content"></div>
+                    <div id="envTab" class="tab-content"></div>
+                    <div id="settingsTab" class="tab-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/assets/chart.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/projects.js"></script>
+    <script src="/js/deployment.js"></script>
+    <script src="/js/logs.js"></script>
+    <script src="/js/analytics.js"></script>
+    <script src="/js/envVars.js"></script>
+    <script src="/js/utils.js"></script>
+</body>
+</html>

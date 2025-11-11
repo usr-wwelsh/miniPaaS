@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=paas_network"
+      - "--entrypoints.web.address=:80"
+      - "--accesslog=true"
+      - "--accesslog.filepath=/var/log/traefik/access.log"
+      - "--accesslog.format=json"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/logs:/var/log/traefik
+    networks:
+      - paas_network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-paasuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-paaspass}
+      POSTGRES_DB: ${POSTGRES_DB:-paasdb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - paas_network
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paasuser -d paasdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  control-plane:
+    build: ./control-plane
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://paasuser:paaspass@postgres:5432/paasdb}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET:-default_secret_change_me}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change_me_to_32_character_key}
+      DOCKER_SOCKET: /var/run/docker.sock
+      NODE_ENV: development
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./control-plane:/app
+      - /app/node_modules
+      - build_cache:/tmp/builds
+      - ./dashboard:/app/public
+    networks:
+      - paas_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`localhost`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      traefik:
+        condition: service_started
+    restart: unless-stopped
+
+networks:
+  paas_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  build_cache:
