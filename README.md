@@ -1,6 +1,23 @@
 # miniPaaS
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Required-blue.svg)](https://www.docker.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)](https://www.postgresql.org/)
+[![Traefik](https://img.shields.io/badge/Traefik-v3-orange.svg)](https://traefik.io/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/wedsmoker/miniPaaS/pulls)
+
 A self-hosted Platform as a Service (PaaS) that runs entirely on your local machine. Deploy applications from GitHub repositories with automatic builds, real-time logs, analytics, and environment variable management.
+
+## Screenshots
+
+<div align="center">
+  <img src="demo1.png" alt="miniPaaS Dashboard" width="800"/>
+  <p><em>Dashboard with deployed projects</em></p>
+
+  <img src="demo2.png" alt="miniPaaS Deployment" width="800"/>
+  <p><em>Real-time deployment logs</em></p>
+</div>
 
 ## Features
 
