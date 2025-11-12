@@ -10,7 +10,7 @@ providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
-    network: "paas_network"
+    network: "1minipaas_paas_network"
 
 accessLog:
   filePath: "/var/log/traefik/access.log"

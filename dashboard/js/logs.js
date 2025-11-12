@@ -1,5 +1,6 @@
 let logWebSocket = null;
 let currentDeploymentId = null;
+let currentLogType = 'all'; // 'all', 'build', or 'runtime'
 
 function renderLogsTab() {
     const tab = document.getElementById('logsTab');
@@ -16,6 +17,11 @@ function renderLogsTab() {
                         </option>
                     `).join('')}
                 </select>
+                <div class="log-type-tabs">
+                    <button class="log-tab active" data-type="all" onclick="switchLogType('all')">All</button>
+                    <button class="log-tab" data-type="build" onclick="switchLogType('build')">Build</button>
+                    <button class="log-tab" data-type="runtime" onclick="switchLogType('runtime')">Runtime</button>
+                </div>
             </div>
             <div class="log-search">
                 <button class="btn btn-secondary btn-icon" onclick="clearLogs()" title="Clear">
@@ -100,12 +106,20 @@ function appendLog(logLine, level = 'info', source = 'runtime') {
     const logViewer = document.getElementById('logViewer');
     if (!logViewer) return;
 
+    // Filter logs based on current log type
+    if (currentLogType !== 'all' && source !== currentLogType) {
+        return;
+    }
+
     const logElement = document.createElement('div');
     logElement.className = `log-line log-${level}`;
+    logElement.dataset.source = source;
 
     const cleanedLog = logLine.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
 
-    logElement.textContent = cleanedLog;
+    // Add source badge
+    const sourceBadge = source === 'build' ? '[BUILD] ' : '[RUNTIME] ';
+    logElement.textContent = sourceBadge + cleanedLog;
 
     logViewer.appendChild(logElement);
 
@@ -114,6 +128,32 @@ function appendLog(logLine, level = 'info', source = 'runtime') {
     }
 
     logViewer.scrollTop = logViewer.scrollHeight;
+}
+
+function switchLogType(type) {
+    currentLogType = type;
+
+    // Update active tab styling
+    document.querySelectorAll('.log-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.type === type) {
+            tab.classList.add('active');
+        }
+    });
+
+    // Filter existing logs
+    const logViewer = document.getElementById('logViewer');
+    if (!logViewer) return;
+
+    const logLines = logViewer.querySelectorAll('.log-line');
+    logLines.forEach(logLine => {
+        const source = logLine.dataset.source;
+        if (type === 'all' || source === type || !source) {
+            logLine.style.display = '';
+        } else {
+            logLine.style.display = 'none';
+        }
+    });
 }
 
 function clearLogs() {

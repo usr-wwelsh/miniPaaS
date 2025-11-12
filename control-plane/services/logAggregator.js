@@ -23,14 +23,19 @@ class LogAggregator {
       this.activeStreams.set(deploymentId, stream);
 
       stream.on('data', async (chunk) => {
-        const logLine = chunk.toString('utf8').trim();
+        const logLine = this.sanitizeLogLine(chunk.toString('utf8')).trim();
         if (logLine) {
           const logLevel = this.detectLogLevel(logLine);
 
-          await db.query(
-            'INSERT INTO runtime_logs (deployment_id, log_line, log_level) VALUES ($1, $2, $3)',
-            [deploymentId, logLine, logLevel]
-          );
+          try {
+            await db.query(
+              'INSERT INTO runtime_logs (deployment_id, log_line, log_level) VALUES ($1, $2, $3)',
+              [deploymentId, logLine, logLevel]
+            );
+          } catch (error) {
+            console.error('Error inserting runtime log:', error.message);
+            // Continue processing logs even if one fails
+          }
 
           if (onLog) {
             onLog(logLine);
@@ -57,6 +62,15 @@ class LogAggregator {
       stream.destroy();
       this.activeStreams.delete(deploymentId);
     }
+  }
+
+  sanitizeLogLine(logLine) {
+    // Remove null bytes and other characters that PostgreSQL can't handle
+    // Also strip ANSI color codes and control characters
+    return logLine
+      .replace(/\x00/g, '') // Remove null bytes
+      .replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '') // Remove other control chars except \n and \r
+      .replace(/\x1B\[[0-9;]*[a-zA-Z]/g, ''); // Remove ANSI escape codes
   }
 
   detectLogLevel(logLine) {

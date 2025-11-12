@@ -1,4 +1,5 @@
 let currentProject = null;
+let projectDetailRefreshInterval = null;
 
 async function openProjectDetail(projectId) {
     try {
@@ -8,6 +9,9 @@ async function openProjectDetail(projectId) {
 
         switchTab('overview');
         renderOverviewTab();
+
+        // Start auto-refresh for project details
+        startProjectDetailAutoRefresh();
     } catch (error) {
         console.error('Error loading project:', error);
         showNotification('Failed to load project details', 'error');
@@ -16,7 +20,44 @@ async function openProjectDetail(projectId) {
 
 function closeProjectDetail() {
     document.getElementById('projectDetailModal').classList.remove('active');
+    stopProjectDetailAutoRefresh();
     currentProject = null;
+}
+
+async function refreshProjectDetail() {
+    if (!currentProject) return;
+
+    try {
+        const updated = await api.get(`/api/projects/${currentProject.id}`);
+        currentProject = updated;
+
+        // Re-render the current tab
+        const activeTab = document.querySelector('.tab-button.active');
+        if (activeTab) {
+            const tabName = activeTab.textContent.toLowerCase();
+            switchTab(tabName);
+        }
+    } catch (error) {
+        console.error('Error refreshing project:', error);
+    }
+}
+
+function startProjectDetailAutoRefresh() {
+    if (projectDetailRefreshInterval) {
+        clearInterval(projectDetailRefreshInterval);
+    }
+
+    // Refresh every 3 seconds
+    projectDetailRefreshInterval = setInterval(() => {
+        refreshProjectDetail();
+    }, 3000);
+}
+
+function stopProjectDetailAutoRefresh() {
+    if (projectDetailRefreshInterval) {
+        clearInterval(projectDetailRefreshInterval);
+        projectDetailRefreshInterval = null;
+    }
 }
 
 function switchTab(tabName) {

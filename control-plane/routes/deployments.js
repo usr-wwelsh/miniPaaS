@@ -55,6 +55,17 @@ router.post('/projects/:projectId/deploy', ensureAuthenticated, async (req, res,
 
       const buildResult = await buildEngine.buildImage(deployment.id, buildPath, imageName);
 
+      // Update project port if a port was detected during build
+      let projectPort = project.port;
+      if (buildResult.detectedPort) {
+        console.log(`[Deployment] Detected port ${buildResult.detectedPort} for project ${project.id}`);
+        await db.query(
+          'UPDATE projects SET port = $1 WHERE id = $2',
+          [buildResult.detectedPort, project.id]
+        );
+        projectPort = buildResult.detectedPort;
+      }
+
       const envVars = await db.query(
         'SELECT key, value FROM env_vars WHERE project_id = $1',
         [project.id]
@@ -84,7 +95,7 @@ router.post('/projects/:projectId/deploy', ensureAuthenticated, async (req, res,
         imageName,
         project.subdomain,
         envObject,
-        project.port
+        projectPort
       );
 
       await fs.remove(buildPath);

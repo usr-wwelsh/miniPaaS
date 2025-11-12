@@ -7,7 +7,7 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=paas_network"
+      - "--providers.docker.network=1minipaas_paas_network"
       - "--entrypoints.web.address=:80"
       - "--accesslog=true"
       - "--accesslog.filepath=/var/log/traefik/access.log"

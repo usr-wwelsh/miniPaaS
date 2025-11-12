@@ -1,5 +1,6 @@
 let currentProjects = [];
 let repositories = [];
+let projectsRefreshInterval = null;
 
 async function loadProjects() {
     try {
@@ -14,6 +15,25 @@ async function loadProjects() {
                 <p>${error.message}</p>
             </div>
         `;
+    }
+}
+
+function startProjectsAutoRefresh() {
+    // Clear any existing interval
+    if (projectsRefreshInterval) {
+        clearInterval(projectsRefreshInterval);
+    }
+
+    // Refresh every 5 seconds
+    projectsRefreshInterval = setInterval(() => {
+        loadProjects();
+    }, 5000);
+}
+
+function stopProjectsAutoRefresh() {
+    if (projectsRefreshInterval) {
+        clearInterval(projectsRefreshInterval);
+        projectsRefreshInterval = null;
     }
 }
 
@@ -119,4 +139,5 @@ async function createProject(event) {
 
 if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
     loadProjects();
+    startProjectsAutoRefresh();
 }

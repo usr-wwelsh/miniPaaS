@@ -7,7 +7,38 @@
 
 .log-filters {
     display: flex;
-    gap: 8px;
+    gap: 12px;
+    align-items: center;
+}
+
+.log-type-tabs {
+    display: flex;
+    gap: 4px;
+    background-color: var(--bg-tertiary);
+    padding: 4px;
+    border-radius: var(--radius-sm);
+}
+
+.log-tab {
+    padding: 6px 16px;
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.log-tab:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+}
+
+.log-tab.active {
+    background-color: var(--accent-primary);
+    color: white;
 }
 
 .log-filter-btn {

@@ -7,7 +7,8 @@ const path = require('path');
 
 async function buildImage(deploymentId, repoPath, imageName) {
   try {
-    await ensureDockerfile(repoPath);
+    const dockerfileInfo = await ensureDockerfile(repoPath);
+    console.log('[Build Engine] Dockerfile info:', dockerfileInfo);
 
     await logBuild(deploymentId, 'Starting Docker build...');
     await updateDeploymentStatus(deploymentId, 'building');
@@ -38,7 +39,7 @@ async function buildImage(deploymentId, repoPath, imageName) {
               );
             }
 
-            resolve({ imageId, imageName });
+            resolve({ imageId, imageName, detectedPort: dockerfileInfo.detectedPort });
           }
         },
         async (event) => {
