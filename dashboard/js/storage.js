@@ -214,6 +214,133 @@ async function showCreateVolumeDialog(projectId) {
   }
 }
 
+let currentVolumeId = null;
+
 async function browseVolume(volumeId) {
-  alert('File browser UI is under development. Use the API endpoints directly for now.');
+  currentVolumeId = volumeId;
+  document.getElementById('fileBrowserModal').classList.add('active');
+  document.getElementById('fileBrowserTitle').textContent = 'File Browser';
+  await loadFilesInBrowser(volumeId);
+}
+
+function closeFileBrowser() {
+  document.getElementById('fileBrowserModal').classList.remove('active');
+  currentVolumeId = null;
+}
+
+async function loadFilesInBrowser(volumeId) {
+  const container = document.getElementById('fileListContainer');
+  container.innerHTML = '<p>Loading files...</p>';
+
+  try {
+    const files = await listVolumeFiles(volumeId, '/');
+    renderFileList(files);
+  } catch (error) {
+    container.innerHTML = '<p class="error">Failed to load files</p>';
+  }
+}
+
+function renderFileList(files) {
+  const container = document.getElementById('fileListContainer');
+
+  if (!files || files.length === 0) {
+    container.innerHTML = '<p>No files in this volume. Upload some files to get started.</p>';
+    return;
+  }
+
+  let html = '<div class="file-list">';
+
+  files.forEach(file => {
+    html += `
+      <div class="file-item">
+        <div class="file-info">
+          <span class="file-name">${escapeHtml(file.name || file.path)}</span>
+          <span class="file-size">${formatBytes(file.size || 0)}</span>
+        </div>
+        <button class="btn-delete" onclick="deleteFileHandler('${escapeHtml(file.path)}')">Delete</button>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+async function handleFileSelect(event) {
+  const files = event.target.files;
+  console.log('Files selected:', files.length);
+
+  if (!files || files.length === 0) {
+    console.log('No files selected');
+    return;
+  }
+
+  if (!currentVolumeId) {
+    console.error('No volume ID set');
+    showNotification('Error: No volume selected', 'error');
+    return;
+  }
+
+  const uploadBtn = document.querySelector('.file-upload-section .btn');
+  if (uploadBtn) {
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading...';
+  }
+
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      console.log('Uploading file:', file.name, 'to volume:', currentVolumeId);
+      await uploadFile(currentVolumeId, `/${file.name}`, file);
+      console.log('File uploaded:', file.name);
+    }
+
+    await loadFilesInBrowser(currentVolumeId);
+    showNotification('Files uploaded successfully', 'success');
+  } catch (error) {
+    console.error('Upload error:', error);
+    showNotification('Failed to upload files: ' + error.message, 'error');
+  } finally {
+    if (uploadBtn) {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'Upload Files';
+    }
+    event.target.value = '';
+  }
+}
+
+async function deleteFileHandler(filePath) {
+  if (!currentVolumeId) return;
+
+  try {
+    await deleteFile(currentVolumeId, filePath);
+    await loadFilesInBrowser(currentVolumeId);
+    showNotification('File deleted', 'success');
+  } catch (error) {
+    showNotification('Failed to delete file: ' + error.message, 'error');
+  }
+}
+
+async function renderStorageTab() {
+  const tab = document.getElementById('storageTab');
+  const projectId = currentProject.id;
+
+  tab.innerHTML = `
+    <div class="storage-section">
+      <div class="section-header">
+        <h3>Persistent Storage Volumes</h3>
+        <button class="btn btn-primary" onclick="showCreateVolumeDialog(${projectId})">Create Volume</button>
+      </div>
+      <div id="volumesList">
+        <p>Loading volumes...</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    const volumes = await loadVolumes(projectId);
+    renderVolumeList(projectId, volumes);
+  } catch (error) {
+    document.getElementById('volumesList').innerHTML = '<p class="error">Failed to load volumes</p>';
+  }
 }

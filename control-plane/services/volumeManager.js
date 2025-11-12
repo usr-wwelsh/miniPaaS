@@ -104,7 +104,13 @@ async function listFiles(volumeId, dirPath = '/') {
       [volumeId, normalizedPath + '%']
     );
 
-    return files.rows;
+    return files.rows.map(file => ({
+      name: file.file_path.split('/').pop(),
+      path: file.file_path,
+      size: parseInt(file.file_size),
+      mime_type: file.mime_type,
+      uploaded_at: file.uploaded_at
+    }));
   } catch (error) {
     console.error('Error listing files:', error);
     throw error;
@@ -247,7 +253,17 @@ async function getProjectVolumes(projectId) {
       [projectId]
     );
 
-    return volumes.rows;
+    return volumes.rows.map(vol => ({
+      id: vol.id,
+      project_id: vol.project_id,
+      name: vol.name,
+      mount_path: vol.mount_path,
+      size_bytes: parseInt(vol.size_bytes) || 0,
+      max_size_bytes: parseInt(vol.max_size_bytes) || 0,
+      docker_volume_name: vol.docker_volume_name,
+      created_at: vol.created_at,
+      updated_at: vol.updated_at
+    }));
   } catch (error) {
     console.error('Error getting project volumes:', error);
     throw error;

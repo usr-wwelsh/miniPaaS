@@ -77,6 +77,8 @@ function switchTab(tabName) {
         renderLogsTab();
     } else if (tabName === 'analytics') {
         renderAnalyticsTab();
+    } else if (tabName === 'storage') {
+        renderStorageTab();
     } else if (tabName === 'env') {
         renderEnvTab();
     } else if (tabName === 'settings') {

@@ -3,9 +3,9 @@ const router = express.Router();
 const crypto = require('crypto');
 const db = require('../config/database');
 const logger = require('../services/logger');
-const { isAuthenticated } = require('../middleware/auth');
+const { ensureAuthenticated } = require('../middleware/auth');
 
-router.post('/projects/:id/webhook/generate', isAuthenticated, async (req, res) => {
+router.post('/projects/:id/webhook/generate', ensureAuthenticated, async (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
 
@@ -32,7 +32,7 @@ router.post('/projects/:id/webhook/generate', isAuthenticated, async (req, res) 
   }
 });
 
-router.post('/projects/:id/webhook/disable', isAuthenticated, async (req, res) => {
+router.post('/projects/:id/webhook/disable', ensureAuthenticated, async (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
 
@@ -121,7 +121,7 @@ router.post('/webhooks/:projectId/:token', async (req, res) => {
   }
 });
 
-router.get('/projects/:id/webhook/history', isAuthenticated, async (req, res) => {
+router.get('/projects/:id/webhook/history', ensureAuthenticated, async (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
 

@@ -38,7 +38,7 @@
             line-height: 1.6;
             margin: 10px 0;
         }
-        .login-btn {
+        .btn {
             background-color: #ffffff;
             border: 2px solid #000000;
             padding: 8px 16px;
@@ -48,8 +48,9 @@
             text-decoration: none;
             color: #000000;
             display: inline-block;
+            margin: 0 5px;
         }
-        .login-btn:hover {
+        .btn:hover {
             background-color: #e0e0e0;
         }
         .footer {
@@ -60,12 +61,17 @@
         .footer a {
             color: #000000;
         }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <a href="/auth/github" class="login-btn">Login with GitHub</a>
+        <div class="header" id="headerButtons">
+            <a href="/auth/github" class="btn" id="loginBtn">Login with GitHub</a>
+            <a href="/dashboard" class="btn hidden" id="projectsBtn">Projects</a>
+            <a href="#" class="btn hidden" id="logoutBtn" onclick="logout(); return false;">Logout</a>
         </div>
 
         <div class="main-box">
@@ -82,5 +88,35 @@
             <p><a href="https://github.com/wedsmoker">github.com/wedsmoker</a></p>
         </div>
     </div>
+
+    <script>
+        async function checkAuth() {
+            try {
+                const response = await fetch('/auth/user', { credentials: 'include' });
+                const user = await response.json();
+
+                if (user.authenticated) {
+                    document.getElementById('loginBtn').classList.add('hidden');
+                    document.getElementById('projectsBtn').classList.remove('hidden');
+                    document.getElementById('logoutBtn').classList.remove('hidden');
+                } else {
+                    document.getElementById('loginBtn').classList.remove('hidden');
+                    document.getElementById('projectsBtn').classList.add('hidden');
+                    document.getElementById('logoutBtn').classList.add('hidden');
+                }
+            } catch (error) {
+                document.getElementById('loginBtn').classList.remove('hidden');
+                document.getElementById('projectsBtn').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.add('hidden');
+            }
+        }
+
+        async function logout() {
+            await fetch('/auth/logout', { credentials: 'include' });
+            window.location.reload();
+        }
+
+        checkAuth();
+    </script>
 </body>
 </html>

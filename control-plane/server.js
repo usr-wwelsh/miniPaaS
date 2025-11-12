@@ -59,8 +59,6 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use(express.static(path.join(__dirname, 'public')));
-
 app.use('/auth', authRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api', deploymentsRoutes);
@@ -84,12 +82,14 @@ app.get('/api/health/detailed', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-  } else {
-    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
-  }
+  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(errorHandler);
 

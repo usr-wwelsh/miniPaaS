@@ -137,7 +137,7 @@ async function createProject(event) {
     }
 }
 
-if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+if (window.location.pathname === '/dashboard' || window.location.pathname === '/index.html') {
     loadProjects();
     startProjectsAutoRefresh();
 }

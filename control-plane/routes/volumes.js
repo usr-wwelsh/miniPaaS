@@ -3,9 +3,9 @@ const router = express.Router();
 const volumeManager = require('../services/volumeManager');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
-const { isAuthenticated } = require('../middleware/auth');
+const { ensureAuthenticated } = require('../middleware/auth');
 
-router.post('/projects/:id/volumes', isAuthenticated, async (req, res) => {
+router.post('/projects/:id/volumes', ensureAuthenticated, async (req, res) => {
   try {
     const { name, mountPath } = req.body;
     const projectId = parseInt(req.params.id);
@@ -25,7 +25,7 @@ router.post('/projects/:id/volumes', isAuthenticated, async (req, res) => {
   }
 });
 
-router.get('/projects/:id/volumes', isAuthenticated, async (req, res) => {
+router.get('/projects/:id/volumes', ensureAuthenticated, async (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
 
@@ -44,7 +44,7 @@ router.get('/projects/:id/volumes', isAuthenticated, async (req, res) => {
   }
 });
 
-router.delete('/volumes/:id', isAuthenticated, async (req, res) => {
+router.delete('/volumes/:id', ensureAuthenticated, async (req, res) => {
   try {
     const volumeId = parseInt(req.params.id);
 
@@ -62,7 +62,7 @@ router.delete('/volumes/:id', isAuthenticated, async (req, res) => {
   }
 });
 
-router.get('/volumes/:id/files', isAuthenticated, async (req, res) => {
+router.get('/volumes/:id/files', ensureAuthenticated, async (req, res) => {
   try {
     const volumeId = parseInt(req.params.id);
     const path = req.query.path || '/';
@@ -82,7 +82,7 @@ router.get('/volumes/:id/files', isAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/volumes/:id/files', isAuthenticated, upload.single('file'), async (req, res) => {
+router.post('/volumes/:id/files', ensureAuthenticated, upload.single('file'), async (req, res) => {
   try {
     const volumeId = parseInt(req.params.id);
     const filePath = req.body.path;
@@ -114,7 +114,7 @@ router.post('/volumes/:id/files', isAuthenticated, upload.single('file'), async 
   }
 });
 
-router.get('/volumes/:id/files/download', isAuthenticated, async (req, res) => {
+router.get('/volumes/:id/files/download', ensureAuthenticated, async (req, res) => {
   try {
     const volumeId = parseInt(req.params.id);
     const filePath = req.query.path;
@@ -141,7 +141,7 @@ router.get('/volumes/:id/files/download', isAuthenticated, async (req, res) => {
   }
 });
 
-router.delete('/volumes/:id/files', isAuthenticated, async (req, res) => {
+router.delete('/volumes/:id/files', ensureAuthenticated, async (req, res) => {
   try {
     const volumeId = parseInt(req.params.id);
     const filePath = req.query.path;
@@ -167,7 +167,7 @@ router.delete('/volumes/:id/files', isAuthenticated, async (req, res) => {
   }
 });
 
-router.get('/volumes/:id/stats', isAuthenticated, async (req, res) => {
+router.get('/volumes/:id/stats', ensureAuthenticated, async (req, res) => {
   try {
     const volumeId = parseInt(req.params.id);
 

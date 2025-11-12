@@ -61,21 +61,25 @@ async function checkAuth() {
     try {
         const user = await api.get('/auth/user');
         if (!user.authenticated) {
-            window.location.href = '/login.html';
+            window.location.replace('/');
+            return null;
         }
         return user;
     } catch (error) {
-        window.location.href = '/login.html';
+        window.location.replace('/');
+        return null;
     }
 }
 
 async function logout() {
     await api.get('/auth/logout');
-    window.location.href = '/login.html';
+    window.location.replace('/');
 }
 
-if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+if (window.location.pathname === '/dashboard' || window.location.pathname === '/index.html') {
     checkAuth().then(user => {
-        document.getElementById('username').textContent = user.user.username;
+        if (user && user.user) {
+            document.getElementById('username').textContent = user.user.username;
+        }
     });
 }

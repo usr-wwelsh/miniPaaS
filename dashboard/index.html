@@ -103,6 +103,7 @@
                     <button class="tab-button active" onclick="switchTab('overview')">Overview</button>
                     <button class="tab-button" onclick="switchTab('logs')">Logs</button>
                     <button class="tab-button" onclick="switchTab('analytics')">Analytics</button>
+                    <button class="tab-button" onclick="switchTab('storage')">Storage</button>
                     <button class="tab-button" onclick="switchTab('env')">Environment</button>
                     <button class="tab-button" onclick="switchTab('settings')">Settings</button>
                 </div>
@@ -111,8 +112,28 @@
                     <div id="overviewTab" class="tab-content active"></div>
                     <div id="logsTab" class="tab-content"></div>
                     <div id="analyticsTab" class="tab-content"></div>
+                    <div id="storageTab" class="tab-content"></div>
                     <div id="envTab" class="tab-content"></div>
                     <div id="settingsTab" class="tab-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fileBrowserModal" class="modal">
+        <div class="modal-overlay" onclick="closeFileBrowser()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="fileBrowserTitle">File Browser</h3>
+                <button class="modal-close" onclick="closeFileBrowser()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="file-upload-section">
+                    <input type="file" id="fileUploadInput" multiple style="display: none;" onchange="handleFileSelect(event)">
+                    <button class="btn btn-primary" onclick="document.getElementById('fileUploadInput').click()">Upload Files</button>
+                </div>
+                <div id="fileListContainer">
+                    <p>Loading files...</p>
                 </div>
             </div>
         </div>
@@ -125,6 +146,7 @@
     <script src="/js/logs.js"></script>
     <script src="/js/analytics.js"></script>
     <script src="/js/envVars.js"></script>
+    <script src="/js/storage.js"></script>
     <script src="/js/utils.js"></script>
 </body>
 </html>

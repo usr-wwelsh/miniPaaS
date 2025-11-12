@@ -5,9 +5,9 @@ const passport = require('../config/github');
 router.get('/github', passport.authenticate('github', { scope: ['repo'] }));
 
 router.get('/github/callback',
-  passport.authenticate('github', { failureRedirect: '/login.html' }),
+  passport.authenticate('github', { failureRedirect: '/' }),
   (req, res) => {
-    res.redirect('/');
+    res.redirect('/dashboard');
   }
 );
 
@@ -31,7 +31,13 @@ router.get('/logout', (req, res) => {
     if (err) {
       return res.status(500).json({ error: 'Logout failed' });
     }
-    res.json({ success: true });
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Session destroy failed' });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ success: true });
+    });
   });
 });
 
