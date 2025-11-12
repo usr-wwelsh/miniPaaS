@@ -296,6 +296,9 @@ async function handleFileSelect(event) {
     }
 
     await loadFilesInBrowser(currentVolumeId);
+    // Refresh the main volume list to show updated size
+    const volumes = await loadVolumes(currentProject.id);
+    renderVolumeList(currentProject.id, volumes);
     showNotification('Files uploaded successfully', 'success');
   } catch (error) {
     console.error('Upload error:', error);
@@ -315,6 +318,9 @@ async function deleteFileHandler(filePath) {
   try {
     await deleteFile(currentVolumeId, filePath);
     await loadFilesInBrowser(currentVolumeId);
+    // Refresh the main volume list to show updated size
+    const volumes = await loadVolumes(currentProject.id);
+    renderVolumeList(currentProject.id, volumes);
     showNotification('File deleted', 'success');
   } catch (error) {
     showNotification('Failed to delete file: ' + error.message, 'error');

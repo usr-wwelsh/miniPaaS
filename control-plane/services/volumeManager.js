@@ -168,6 +168,9 @@ async function uploadFile(volumeId, filePath, fileBuffer, mimeType = 'applicatio
       [volumeId, filePath, fileSize, mimeType]
     );
 
+    // Update the volume's size_bytes after file upload
+    const stats = await getVolumeStats(volumeId);
+    
     return { success: true, filePath, fileSize };
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -238,6 +241,9 @@ async function deleteFile(volumeId, filePath) {
       'DELETE FROM volume_files WHERE volume_id = $1 AND file_path = $2',
       [volumeId, filePath]
     );
+
+    // Update the volume's size_bytes after file deletion
+    const stats = await getVolumeStats(volumeId);
 
     return { success: true };
   } catch (error) {
