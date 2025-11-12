@@ -16,11 +16,15 @@ const deploymentsRoutes = require('./routes/deployments');
 const logsRoutes = require('./routes/logs');
 const analyticsRoutes = require('./routes/analytics');
 const envVarsRoutes = require('./routes/envVars');
+const volumesRoutes = require('./routes/volumes');
+const webhooksRoutes = require('./routes/webhooks');
 
 const errorHandler = require('./middleware/errorHandler');
 const setupWebSocketServer = require('./websockets/logStreamer');
 const analyticsCollector = require('./services/analyticsCollector');
 const statusMonitor = require('./services/statusMonitor');
+const healthMonitor = require('./services/healthMonitor');
+const logger = require('./services/logger');
 
 const app = express();
 const server = http.createServer(app);
@@ -63,13 +67,28 @@ app.use('/api', deploymentsRoutes);
 app.use('/api', logsRoutes);
 app.use('/api', analyticsRoutes);
 app.use('/api', envVarsRoutes);
+app.use('/api', volumesRoutes);
+app.use('/api', webhooksRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/health/detailed', async (req, res) => {
+  try {
+    const health = await healthMonitor.getDetailedHealth();
+    res.json(health);
+  } catch (error) {
+    res.status(500).json({ status: 'error', error: error.message });
+  }
+});
+
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  if (req.isAuthenticated()) {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+  }
 });
 
 app.use(errorHandler);
@@ -78,20 +97,24 @@ setupWebSocketServer(server);
 
 analyticsCollector.startStatsCollection();
 statusMonitor.start();
+healthMonitor.start();
+
+logger.info('miniPaaS Control Plane initializing...');
 
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`miniPaaS Control Plane running on port ${PORT}`);
-  console.log(`Dashboard: http://localhost:${PORT}`);
-  console.log(`WebSocket: ws://localhost:${PORT}/ws/logs`);
+  logger.info(`miniPaaS Control Plane running on port ${PORT}`);
+  logger.info(`Dashboard: http://localhost:${PORT}`);
+  logger.info(`WebSocket: ws://localhost:${PORT}/ws/logs`);
 });
 
 process.on('SIGTERM', () => {
-  console.log('Shutting down gracefully...');
+  logger.info('Shutting down gracefully...');
   analyticsCollector.stopStatsCollection();
+  healthMonitor.stop();
   server.close(() => {
-    console.log('Server closed');
+    logger.info('Server closed');
     process.exit(0);
   });
 });

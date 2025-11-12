@@ -8,8 +8,15 @@ async function startContainer(deploymentId, projectId, imageName, subdomain, env
       throw new Error('Project not found');
     }
 
-    const projectName = project.rows[0].name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const projectData = project.rows[0];
+    const projectName = projectData.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const containerName = `${projectName}-${deploymentId}`;
+
+    const volumes = await db.query('SELECT * FROM volumes WHERE project_id = $1', [projectId]);
+    const volumeBinds = volumes.rows.map(v => `${v.docker_volume_name}:${v.mount_path}`);
+
+    const memoryLimit = (projectData.memory_limit || 512) * 1024 * 1024;
+    const cpuLimit = (projectData.cpu_limit || 1000) * 1000000;
 
     const containerConfig = {
       Image: imageName,
@@ -27,7 +34,10 @@ async function startContainer(deploymentId, projectId, imageName, subdomain, env
         NetworkMode: '1minipaas_paas_network',
         RestartPolicy: {
           Name: 'unless-stopped'
-        }
+        },
+        Memory: memoryLimit,
+        NanoCpus: cpuLimit,
+        Binds: volumeBinds
       },
       ExposedPorts: {
         [`${port}/tcp`]: {}
@@ -130,9 +140,82 @@ async function getContainerStats(containerId) {
   }
 }
 
+async function rollbackDeployment(projectId, targetDeploymentId) {
+  try {
+    const targetDeployment = await db.query(
+      'SELECT * FROM deployments WHERE id = $1 AND project_id = $2',
+      [targetDeploymentId, projectId]
+    );
+
+    if (targetDeployment.rows.length === 0) {
+      throw new Error('Target deployment not found');
+    }
+
+    const deployment = targetDeployment.rows[0];
+
+    if (!deployment.docker_image_id || !deployment.can_rollback) {
+      throw new Error('Cannot rollback to this deployment');
+    }
+
+    const currentDeployment = await db.query(
+      "SELECT * FROM deployments WHERE project_id = $1 AND status = 'running' ORDER BY created_at DESC LIMIT 1",
+      [projectId]
+    );
+
+    if (currentDeployment.rows.length > 0) {
+      await stopContainer(currentDeployment.rows[0].id);
+    }
+
+    const newDeployment = await db.query(
+      `INSERT INTO deployments (project_id, commit_sha, status, docker_image_id)
+       VALUES ($1, $2, 'pending', $3)
+       RETURNING *`,
+      [projectId, deployment.commit_sha, deployment.docker_image_id]
+    );
+
+    return newDeployment.rows[0];
+  } catch (error) {
+    console.error('Error rolling back deployment:', error);
+    throw error;
+  }
+}
+
+async function cleanupOldImages(projectId) {
+  try {
+    const project = await db.query('SELECT keep_image_history FROM projects WHERE id = $1', [projectId]);
+
+    if (project.rows.length === 0) {
+      return;
+    }
+
+    const keepCount = project.rows[0].keep_image_history || 5;
+
+    const oldDeployments = await db.query(
+      `SELECT docker_image_id FROM deployments
+       WHERE project_id = $1 AND docker_image_id IS NOT NULL
+       ORDER BY created_at DESC
+       OFFSET $2`,
+      [projectId, keepCount]
+    );
+
+    for (const deployment of oldDeployments.rows) {
+      try {
+        const image = docker.getImage(deployment.docker_image_id);
+        await image.remove({ force: false });
+      } catch (error) {
+        console.warn('Could not remove old image:', error.message);
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up old images:', error);
+  }
+}
+
 module.exports = {
   startContainer,
   stopContainer,
   getContainerLogs,
-  getContainerStats
+  getContainerStats,
+  rollbackDeployment,
+  cleanupOldImages
 };

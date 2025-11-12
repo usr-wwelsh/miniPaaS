@@ -19,15 +19,17 @@ router.get('/projects/:id/env', ensureAuthenticated, async (req, res, next) => {
     }
 
     const result = await db.query(
-      'SELECT id, key, value, is_suggested, created_at FROM env_vars WHERE project_id = $1 ORDER BY key ASC',
+      'SELECT id, key, value, is_suggested, is_secret, created_at FROM env_vars WHERE project_id = $1 ORDER BY key ASC',
       [req.params.id]
     );
 
     const envVars = result.rows.map(row => ({
       id: row.id,
       key: row.key,
-      value: decrypt(row.value) || row.value,
+      value: row.is_secret ? '***HIDDEN***' : (decrypt(row.value) || row.value),
+      actualValue: decrypt(row.value) || row.value,
       is_suggested: row.is_suggested,
+      is_secret: row.is_secret,
       created_at: row.created_at
     }));
 
@@ -78,7 +80,7 @@ router.get('/projects/:id/env/suggest', ensureAuthenticated, async (req, res, ne
 
 router.post('/projects/:id/env', ensureAuthenticated, async (req, res, next) => {
   try {
-    const { key, value, is_suggested } = req.body;
+    const { key, value, is_suggested, is_secret } = req.body;
 
     if (!key || value === undefined) {
       return res.status(400).json({ error: 'Key and value are required' });
@@ -95,20 +97,25 @@ router.post('/projects/:id/env', ensureAuthenticated, async (req, res, next) => 
 
     const encryptedValue = encrypt(value);
 
+    const autoDetectSecret = is_secret === undefined ?
+      /password|secret|token|key|api[_-]?key|auth/i.test(key) :
+      is_secret;
+
     const result = await db.query(
-      `INSERT INTO env_vars (project_id, key, value, is_suggested)
-      VALUES ($1, $2, $3, $4)
+      `INSERT INTO env_vars (project_id, key, value, is_suggested, is_secret)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (project_id, key)
-      DO UPDATE SET value = $3, is_suggested = $4
+      DO UPDATE SET value = $3, is_suggested = $4, is_secret = $5
       RETURNING *`,
-      [req.params.id, key, encryptedValue, is_suggested || false]
+      [req.params.id, key, encryptedValue, is_suggested || false, autoDetectSecret]
     );
 
     res.json({
       id: result.rows[0].id,
       key: result.rows[0].key,
-      value: value,
-      is_suggested: result.rows[0].is_suggested
+      value: result.rows[0].is_secret ? '***HIDDEN***' : value,
+      is_suggested: result.rows[0].is_suggested,
+      is_secret: result.rows[0].is_secret
     });
   } catch (error) {
     next(error);
@@ -117,7 +124,7 @@ router.post('/projects/:id/env', ensureAuthenticated, async (req, res, next) => 
 
 router.put('/projects/:id/env/:key', ensureAuthenticated, async (req, res, next) => {
   try {
-    const { value } = req.body;
+    const { value, is_secret } = req.body;
 
     if (value === undefined) {
       return res.status(400).json({ error: 'Value is required' });
@@ -134,10 +141,18 @@ router.put('/projects/:id/env/:key', ensureAuthenticated, async (req, res, next)
 
     const encryptedValue = encrypt(value);
 
-    const result = await db.query(
-      'UPDATE env_vars SET value = $1 WHERE project_id = $2 AND key = $3 RETURNING *',
-      [encryptedValue, req.params.id, req.params.key]
-    );
+    let result;
+    if (is_secret !== undefined) {
+      result = await db.query(
+        'UPDATE env_vars SET value = $1, is_secret = $2 WHERE project_id = $3 AND key = $4 RETURNING *',
+        [encryptedValue, is_secret, req.params.id, req.params.key]
+      );
+    } else {
+      result = await db.query(
+        'UPDATE env_vars SET value = $1 WHERE project_id = $2 AND key = $3 RETURNING *',
+        [encryptedValue, req.params.id, req.params.key]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Environment variable not found' });
@@ -146,8 +161,9 @@ router.put('/projects/:id/env/:key', ensureAuthenticated, async (req, res, next)
     res.json({
       id: result.rows[0].id,
       key: result.rows[0].key,
-      value: value,
-      is_suggested: result.rows[0].is_suggested
+      value: result.rows[0].is_secret ? '***HIDDEN***' : value,
+      is_suggested: result.rows[0].is_suggested,
+      is_secret: result.rows[0].is_secret
     });
   } catch (error) {
     next(error);

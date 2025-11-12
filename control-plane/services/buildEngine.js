@@ -5,7 +5,7 @@ const tar = require('tar-stream');
 const fs = require('fs-extra');
 const path = require('path');
 
-async function buildImage(deploymentId, repoPath, imageName) {
+async function buildImage(deploymentId, repoPath, imageName, projectId = null) {
   try {
     const dockerfileInfo = await ensureDockerfile(repoPath);
     console.log('[Build Engine] Dockerfile info:', dockerfileInfo);
@@ -15,10 +15,31 @@ async function buildImage(deploymentId, repoPath, imageName) {
 
     const tarStream = await createTarStream(repoPath);
 
-    const stream = await docker.buildImage(tarStream, {
+    let buildOptions = {
       t: imageName,
       dockerfile: 'Dockerfile'
-    });
+    };
+
+    if (projectId) {
+      const project = await db.query('SELECT build_cache_enabled FROM projects WHERE id = $1', [projectId]);
+
+      if (project.rows.length > 0 && project.rows[0].build_cache_enabled) {
+        const previousDeployment = await db.query(
+          `SELECT docker_image_id FROM deployments
+           WHERE project_id = $1 AND docker_image_id IS NOT NULL AND status = 'running'
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [projectId]
+        );
+
+        if (previousDeployment.rows.length > 0) {
+          buildOptions.cachefrom = [previousDeployment.rows[0].docker_image_id];
+          await logBuild(deploymentId, `Using build cache from previous deployment`);
+        }
+      }
+    }
+
+    const stream = await docker.buildImage(tarStream, buildOptions);
 
     return new Promise((resolve, reject) => {
       let imageId = null;

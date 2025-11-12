@@ -23,17 +23,17 @@ A self-hosted Platform as a Service (PaaS) that runs entirely on your local mach
 
 ```mermaid
 graph LR
-    A[🖱️ Click Deploy] --> B[📦 Clone from GitHub]
-    B --> C{🔍 Detect Project Type}
-    C -->|Node.js/Vite| D1[⚙️ Generate Dockerfile]
+    A[Click Deploy] --> B[Clone from GitHub]
+    B --> C{Detect Project Type}
+    C -->|Node.js/Vite| D1[Generate Dockerfile]
     C -->|Python/Flask| D1
     C -->|Go| D1
-    C -->|Has Dockerfile| D2[📄 Use Existing]
-    D1 --> E[🏗️ Docker Build]
+    C -->|Has Dockerfile| D2[Use Existing]
+    D1 --> E[Docker Build]
     D2 --> E
-    E --> F[🐳 Start Container]
-    F --> G[🌐 Traefik Routes Traffic]
-    G --> H[✨ Live at subdomain.localhost]
+    E --> F[Start Container]
+    F --> G[Traefik Routes Traffic]
+    G --> H[Live at subdomain.localhost]
 
     style A fill:#6366f1,stroke:#4f46e5,stroke-width:2px,color:#fff
     style H fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
@@ -41,7 +41,7 @@ graph LR
     style E fill:#3b82f6,stroke:#2563eb,stroke-width:2px,color:#fff
 ```
 
-**In 30 seconds:** GitHub repo → Auto-detected build → Running at `yourapp.localhost` ⚡
+**In 30 seconds:** GitHub repo to Auto-detected build to Running at `yourapp.localhost`
 
 ## Features
 
@@ -50,7 +50,14 @@ graph LR
 - **Subdomain Routing**: Access deployments at `appname.localhost`
 - **Real-time Logs**: Stream build and runtime logs via WebSocket
 - **Analytics Dashboard**: Track HTTP requests, visitors, and resource usage
-- **Environment Variables**: Auto-detect and manage environment variables
+- **Environment Variables**: Auto-detect and manage environment variables with secret masking
+- **Persistent Storage**: Create and manage Docker volumes for data persistence
+- **Build Queue**: Queue deployments with automatic retry on failure
+- **Resource Limits**: Configure CPU and memory limits per project
+- **Deployment Rollback**: Rollback to previous deployments instantly
+- **Webhooks**: Auto-deploy on GitHub push events
+- **Health Monitoring**: System health checks with automatic recovery
+- **Build Cache**: Speed up builds with Docker layer caching
 - **Clean UI**: Professional, modern dashboard with dark theme
 
 ## Technology Stack
@@ -310,16 +317,88 @@ For local development, this setup uses:
 - Add CSRF protection
 - Enable audit logging
 
+## Advanced Features
+
+### Volume Storage
+
+Create persistent volumes for your applications:
+
+```bash
+# Volumes are created via the dashboard UI or API
+POST /api/projects/:id/volumes
+{
+  "name": "app-data",
+  "mountPath": "/app/storage"
+}
+```
+
+Volumes persist data across deployments and can be managed through the dashboard.
+
+### Webhooks
+
+Enable auto-deployment on GitHub push:
+
+1. Navigate to project settings
+2. Generate webhook URL
+3. Add webhook to your GitHub repository settings
+4. Configure branch filtering (optional)
+
+### Resource Limits
+
+Configure resource constraints per project:
+
+- Memory limit (MB)
+- CPU limit (millicores)
+- Restart policy
+
+### Build Queue
+
+Deployments are automatically queued to prevent system overload:
+
+- Configurable concurrent build limit
+- Automatic retry on failure with exponential backoff
+- Queue position tracking
+
+### Health Monitoring
+
+Automatic system health checks:
+
+- Docker daemon connectivity
+- Database connection pool
+- Traefik reverse proxy status
+- Orphaned container detection and cleanup
+
+### Configuration
+
+Create a `minipaas.config.js` file in the project root:
+
+```javascript
+module.exports = {
+  maxConcurrentBuilds: 2,
+  volumeDefaultSize: 5 * 1024 * 1024 * 1024,
+  buildCacheEnabled: true,
+  resourceLimits: {
+    defaultMemoryMB: 512,
+    defaultCPUMillicores: 1000
+  },
+  retention: {
+    keepDeployments: 10,
+    keepImages: 5,
+    logRetentionDays: 30
+  }
+};
+```
+
 ## Roadmap
 
-- [ ] Automatic deployments via GitHub webhooks
-- [ ] Rollback to previous deployments
 - [ ] Multi-environment support (staging, production)
 - [ ] Custom domains with SSL
 - [ ] Database service provisioning
 - [ ] Horizontal scaling support
 - [ ] CI/CD pipeline integration
 - [ ] CLI tool for deployments
+- [ ] Volume file browser UI
+- [ ] Multi-user and team support
 
 ## Contributing
 
