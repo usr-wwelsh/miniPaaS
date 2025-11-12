@@ -81,7 +81,7 @@ graph LR
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/wedsmoker/miniPaaS.git
 cd miniPaaS
 ```
 
