@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS deployments (
     docker_container_id VARCHAR(255),
     can_rollback BOOLEAN DEFAULT true,
     queue_position INTEGER,
+    error_message TEXT,
+    error_type VARCHAR(100),
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS deployments (
 
 CREATE INDEX IF NOT EXISTS idx_deployments_project ON deployments(project_id);
 CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
+CREATE INDEX IF NOT EXISTS idx_deployments_error ON deployments(error_type) WHERE error_type IS NOT NULL;
 
 -- Environment variables table
 CREATE TABLE IF NOT EXISTS env_vars (

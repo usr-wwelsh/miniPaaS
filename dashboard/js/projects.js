@@ -50,27 +50,150 @@ function renderProjects(projects) {
         return;
     }
 
-    grid.innerHTML = projects.map(project => `
-        <div class="project-card" onclick="openProjectDetail(${project.id})">
-            <div class="project-card-header">
+    grid.innerHTML = projects.map(project => {
+        const pipeline = getPipelineStatus(project);
+        return `
+        <div class="project-card">
+            <div class="project-card-header" onclick="openProjectDetail(${project.id})">
                 <div>
                     <h3 class="project-card-title">${escapeHtml(project.name)}</h3>
                     <a href="http://${project.subdomain}.localhost" target="_blank" class="project-card-url" onclick="event.stopPropagation()">
                         ${project.subdomain}.localhost
                     </a>
                 </div>
-                ${getStatusBadge(project.latest_status || 'inactive')}
+                <div class="project-card-meta">
+                    <div class="project-card-meta-item">
+                        <span>Branch: ${escapeHtml(project.github_branch)}</span>
+                    </div>
+                    <div class="project-card-meta-item">
+                        <span>${project.deployment_count || 0} deployments</span>
+                    </div>
+                </div>
             </div>
-            <div class="project-card-meta">
-                <div class="project-card-meta-item">
-                    <span>Branch: ${escapeHtml(project.github_branch)}</span>
-                </div>
-                <div class="project-card-meta-item">
-                    <span>${project.deployment_count || 0} deployments</span>
-                </div>
+            <div class="project-pipeline">
+                ${renderPipelineStage('GitHub', pipeline.github)}
+                ${renderPipelineStage('Build', pipeline.build)}
+                ${renderPipelineStage('Docker', pipeline.docker)}
+                ${renderPipelineStage('Deploy', pipeline.deploy)}
+                ${renderPipelineStage('Traefik', pipeline.traefik)}
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
+}
+
+function getPipelineStatus(project) {
+    const latestDeployment = project.deployments?.[0];
+    const status = latestDeployment?.status || 'inactive';
+
+    let pipeline = {
+        github: { status: 'idle', message: 'Repository connected', action: null },
+        build: { status: 'idle', message: 'Waiting', action: null },
+        docker: { status: 'idle', message: 'No image', action: null },
+        traefik: { status: 'idle', message: 'Not routed', action: null },
+        deploy: { status: 'idle', message: 'Not deployed', action: null }
+    };
+
+    if (!latestDeployment) {
+        pipeline.github.status = 'warning';
+        pipeline.github.message = 'No deployments yet';
+        pipeline.github.action = { text: 'Deploy now?', fn: `deployProject(${project.id})` };
+        return pipeline;
+    }
+
+    if (status === 'pending' || status === 'queued') {
+        pipeline.github.status = 'success';
+        pipeline.github.message = 'Code fetched';
+        pipeline.build.status = 'pending';
+        pipeline.build.message = 'Queued...';
+    } else if (status === 'building') {
+        pipeline.github.status = 'success';
+        pipeline.github.message = 'Code fetched';
+        pipeline.build.status = 'active';
+        pipeline.build.message = 'Building image...';
+    } else if (status === 'failed') {
+        pipeline.github.status = 'success';
+        pipeline.github.message = 'Code fetched';
+        pipeline.build.status = 'error';
+        pipeline.build.message = 'Build failed';
+        const errorMsg = getErrorMessage(latestDeployment);
+        if (errorMsg) {
+            pipeline.build.error = errorMsg;
+        }
+    } else if (status === 'running') {
+        pipeline.github.status = 'success';
+        pipeline.github.message = 'Code synced';
+        pipeline.build.status = 'success';
+        pipeline.build.message = 'Built successfully';
+        pipeline.docker.status = 'success';
+        pipeline.docker.message = 'Image ready';
+        pipeline.deploy.status = 'success';
+        pipeline.deploy.message = 'Container running';
+        pipeline.traefik.status = 'success';
+        pipeline.traefik.message = 'Routed';
+    } else if (status === 'stopped') {
+        pipeline.github.status = 'success';
+        pipeline.github.message = 'Code available';
+        pipeline.build.status = 'success';
+        pipeline.build.message = 'Built';
+        pipeline.docker.status = 'success';
+        pipeline.docker.message = 'Image exists';
+        pipeline.deploy.status = 'warning';
+        pipeline.deploy.message = 'Stopped';
+        pipeline.deploy.action = { text: 'Start?', fn: `deployProject(${project.id})` };
+    }
+
+    return pipeline;
+}
+
+function renderPipelineStage(title, stage) {
+    const statusClass = `status-${stage.status}`;
+    const icon = getStageIcon(title, stage.status);
+    const actionHtml = stage.action ?
+        `<button class="pipeline-stage-action" onclick="${stage.action.fn}">${stage.action.text}</button>` : '';
+    const errorHtml = stage.error ?
+        `<div class="pipeline-error-message">${escapeHtml(stage.error)}</div>` : '';
+
+    return `
+        <div class="pipeline-stage ${statusClass}">
+            <div class="pipeline-stage-title">${title}</div>
+            <div class="pipeline-stage-icon">${icon}</div>
+            <div class="pipeline-stage-status">${escapeHtml(stage.message)}</div>
+            ${errorHtml}
+            ${actionHtml}
+        </div>
+    `;
+}
+
+function getStageIcon(title, status) {
+    const icons = {
+        'GitHub': { idle: '[  ]', success: '[OK]', error: '[X]', warning: '[!]', active: '[~]', pending: '[.]' },
+        'Build': { idle: '[  ]', success: '[OK]', error: '[X]', warning: '[!]', active: '[~]', pending: '[.]' },
+        'Docker': { idle: '[  ]', success: '[OK]', error: '[X]', warning: '[!]', active: '[~]', pending: '[.]' },
+        'Deploy': { idle: '[  ]', success: '[OK]', error: '[X]', warning: '[!]', active: '[~]', pending: '[.]' },
+        'Traefik': { idle: '[  ]', success: '[OK]', error: '[X]', warning: '[!]', active: '[~]', pending: '[.]' }
+    };
+
+    return icons[title]?.[status] || '[?]';
+}
+
+function getErrorMessage(deployment) {
+    if (deployment && deployment.error_message) {
+        return deployment.error_message;
+    }
+    return null;
+}
+
+async function deployProject(projectId) {
+    try {
+        showNotification('Starting deployment...', 'info');
+        await api.post(`/api/projects/${projectId}/deploy`, {});
+        showNotification('Deployment started successfully', 'success');
+        setTimeout(() => loadProjects(), 2000);
+    } catch (error) {
+        console.error('Error deploying project:', error);
+        showNotification(error.message, 'error');
+    }
 }
 
 async function showNewProjectModal() {

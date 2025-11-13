@@ -48,7 +48,8 @@ async function buildImage(deploymentId, repoPath, imageName, projectId = null) {
         async (err, res) => {
           if (err) {
             await logBuild(deploymentId, `Build failed: ${err.message}`);
-            await updateDeploymentStatus(deploymentId, 'failed');
+            const errorInfo = detectErrorType(err.message);
+            await updateDeploymentStatus(deploymentId, 'failed', errorInfo.message, errorInfo.type);
             reject(err);
           } else {
             await logBuild(deploymentId, 'Build completed successfully');
@@ -83,7 +84,8 @@ async function buildImage(deploymentId, repoPath, imageName, projectId = null) {
     });
   } catch (error) {
     await logBuild(deploymentId, `Build error: ${error.message}`);
-    await updateDeploymentStatus(deploymentId, 'failed');
+    const errorInfo = detectErrorType(error.message);
+    await updateDeploymentStatus(deploymentId, 'failed', errorInfo.message, errorInfo.type);
     throw error;
   }
 }
@@ -148,11 +150,64 @@ async function logBuild(deploymentId, message) {
   }
 }
 
-async function updateDeploymentStatus(deploymentId, status) {
-  await db.query(
-    'UPDATE deployments SET status = $1, updated_at = NOW() WHERE id = $2',
-    [status, deploymentId]
-  );
+async function updateDeploymentStatus(deploymentId, status, errorMessage = null, errorType = null) {
+  if (errorMessage) {
+    await db.query(
+      'UPDATE deployments SET status = $1, error_message = $2, error_type = $3, updated_at = NOW() WHERE id = $4',
+      [status, errorMessage, errorType, deploymentId]
+    );
+  } else {
+    await db.query(
+      'UPDATE deployments SET status = $1, updated_at = NOW() WHERE id = $2',
+      [status, deploymentId]
+    );
+  }
+}
+
+function detectErrorType(errorMessage) {
+  const errorMsg = errorMessage.toLowerCase();
+
+  if (errorMsg.includes('dockerfile') && (errorMsg.includes('not found') || errorMsg.includes('no such file'))) {
+    return { type: 'MISSING_DOCKERFILE', message: 'Dockerfile not found in repository' };
+  }
+
+  if (errorMsg.includes('no space left') || errorMsg.includes('disk quota')) {
+    return { type: 'DISK_SPACE', message: 'Insufficient disk space for build' };
+  }
+
+  if (errorMsg.includes('failed to solve') || errorMsg.includes('executor failed')) {
+    return { type: 'BUILD_FAILED', message: 'Docker build failed. Check build logs for details.' };
+  }
+
+  if (errorMsg.includes('npm err!') || errorMsg.includes('npm install failed')) {
+    return { type: 'NPM_INSTALL', message: 'NPM install failed. Check dependencies.' };
+  }
+
+  if (errorMsg.includes('yarn error') || errorMsg.includes('yarn install failed')) {
+    return { type: 'YARN_INSTALL', message: 'Yarn install failed. Check dependencies.' };
+  }
+
+  if (errorMsg.includes('pip') && errorMsg.includes('error')) {
+    return { type: 'PIP_INSTALL', message: 'Python pip install failed. Check requirements.' };
+  }
+
+  if (errorMsg.includes('enoent') || errorMsg.includes('no such file or directory')) {
+    return { type: 'FILE_NOT_FOUND', message: 'Required file not found during build' };
+  }
+
+  if (errorMsg.includes('permission denied')) {
+    return { type: 'PERMISSION_DENIED', message: 'Permission denied during build' };
+  }
+
+  if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+    return { type: 'NETWORK_ERROR', message: 'Network error during build' };
+  }
+
+  if (errorMsg.includes('timeout')) {
+    return { type: 'TIMEOUT', message: 'Build timeout exceeded' };
+  }
+
+  return { type: 'UNKNOWN_ERROR', message: errorMessage.substring(0, 200) };
 }
 
 module.exports = {

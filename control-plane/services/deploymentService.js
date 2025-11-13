@@ -62,12 +62,52 @@ async function startContainer(deploymentId, projectId, imageName, subdomain, env
     };
   } catch (error) {
     console.error('Error starting container:', error);
+    const errorInfo = detectDeploymentError(error.message);
     await db.query(
-      'UPDATE deployments SET status = $1 WHERE id = $2',
-      ['failed', deploymentId]
+      'UPDATE deployments SET status = $1, error_message = $2, error_type = $3 WHERE id = $4',
+      ['failed', errorInfo.message, errorInfo.type, deploymentId]
     );
     throw error;
   }
+}
+
+function detectDeploymentError(errorMessage) {
+  const errorMsg = errorMessage.toLowerCase();
+
+  if (errorMsg.includes('port') && (errorMsg.includes('already allocated') || errorMsg.includes('in use'))) {
+    return { type: 'PORT_CONFLICT', message: 'Port already in use by another container' };
+  }
+
+  if (errorMsg.includes('no such container') || errorMsg.includes('container not found')) {
+    return { type: 'CONTAINER_NOT_FOUND', message: 'Container not found' };
+  }
+
+  if (errorMsg.includes('image') && errorMsg.includes('not found')) {
+    return { type: 'IMAGE_NOT_FOUND', message: 'Docker image not found. Build may have failed.' };
+  }
+
+  if (errorMsg.includes('network') && errorMsg.includes('not found')) {
+    return { type: 'NETWORK_ERROR', message: 'Docker network not found. Check miniPaaS network configuration.' };
+  }
+
+  if (errorMsg.includes('insufficient') || errorMsg.includes('out of memory')) {
+    return { type: 'INSUFFICIENT_RESOURCES', message: 'Insufficient system resources to start container' };
+  }
+
+  if (errorMsg.includes('exit code') || errorMsg.includes('exited with code')) {
+    const exitCode = errorMsg.match(/exit code (\d+)/)?.[1] || 'unknown';
+    return { type: 'CONTAINER_EXIT', message: `Container exited with code ${exitCode}` };
+  }
+
+  if (errorMsg.includes('health check')) {
+    return { type: 'HEALTH_CHECK_FAILED', message: 'Container health check failed' };
+  }
+
+  if (errorMsg.includes('traefik')) {
+    return { type: 'TRAEFIK_ERROR', message: 'Traefik routing configuration failed' };
+  }
+
+  return { type: 'DEPLOYMENT_ERROR', message: errorMessage.substring(0, 200) };
 }
 
 async function stopContainer(deploymentId) {
