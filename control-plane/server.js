@@ -101,7 +101,7 @@ analyticsCollector.startStatsCollection();
 statusMonitor.start();
 healthMonitor.start();
 healthChecker.start(30000); // Check health every 30 seconds
-commitPoller.start(60000);
+// commitPoller.start(3600000); // Disabled - OAuth tokens don't work with GitHub API
 
 logger.info('miniPaaS Control Plane initializing...');
 
@@ -117,7 +117,7 @@ process.on('SIGTERM', () => {
   logger.info('Shutting down gracefully...');
   analyticsCollector.stopStatsCollection();
   healthMonitor.stop();
-  commitPoller.stop();
+  // commitPoller.stop(); // Disabled
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);
