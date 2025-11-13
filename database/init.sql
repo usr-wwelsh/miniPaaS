@@ -28,6 +28,11 @@ CREATE TABLE IF NOT EXISTS projects (
     build_cache_enabled BOOLEAN DEFAULT true,
     webhook_token VARCHAR(255),
     webhook_enabled BOOLEAN DEFAULT false,
+    latest_commit_sha VARCHAR(40),
+    latest_commit_message TEXT,
+    latest_commit_author VARCHAR(255),
+    latest_commit_date TIMESTAMP,
+    last_commit_check TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

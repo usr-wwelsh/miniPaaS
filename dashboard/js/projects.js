@@ -94,6 +94,11 @@ function getPipelineStatus(project) {
         deploy: { status: 'idle', message: 'Not deployed', action: null }
     };
 
+    const hasNewCommit = project.latest_commit_sha &&
+                        latestDeployment &&
+                        latestDeployment.commit_sha &&
+                        project.latest_commit_sha !== latestDeployment.commit_sha;
+
     if (!latestDeployment) {
         pipeline.github.status = 'warning';
         pipeline.github.message = 'No deployments yet';
@@ -141,6 +146,16 @@ function getPipelineStatus(project) {
         pipeline.deploy.status = 'warning';
         pipeline.deploy.message = 'Stopped';
         pipeline.deploy.action = { text: 'Start?', fn: `deployProject(${project.id})` };
+    }
+
+    if (hasNewCommit && (status === 'running' || status === 'stopped')) {
+        pipeline.github.status = 'warning';
+        pipeline.github.message = 'New commit detected';
+        if (project.latest_commit_message) {
+            const shortMessage = project.latest_commit_message.split('\n')[0].substring(0, 50);
+            pipeline.github.error = shortMessage;
+        }
+        pipeline.github.action = { text: 'Deploy new?', fn: `deployProject(${project.id})` };
     }
 
     return pipeline;

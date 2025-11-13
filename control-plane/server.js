@@ -25,6 +25,7 @@ const analyticsCollector = require('./services/analyticsCollector');
 const statusMonitor = require('./services/statusMonitor');
 const healthMonitor = require('./services/healthMonitor');
 const logger = require('./services/logger');
+const commitPoller = require('./services/commitPoller');
 
 const app = express();
 const server = http.createServer(app);
@@ -98,6 +99,7 @@ setupWebSocketServer(server);
 analyticsCollector.startStatsCollection();
 statusMonitor.start();
 healthMonitor.start();
+commitPoller.start(60000);
 
 logger.info('miniPaaS Control Plane initializing...');
 
@@ -113,6 +115,7 @@ process.on('SIGTERM', () => {
   logger.info('Shutting down gracefully...');
   analyticsCollector.stopStatsCollection();
   healthMonitor.stop();
+  commitPoller.stop();
   server.close(() => {
     logger.info('Server closed');
     process.exit(0);
