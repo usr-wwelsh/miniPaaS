@@ -15,7 +15,7 @@
                     <h1>miniPaaS</h1>
                 </div>
                 <div class="nav-menu">
-                    <a href="/" class="nav-link active">Projects</a>
+                    <a href="/" class="nav-link active">Home</a>
                     <div class="nav-user" id="userMenu">
                         <span id="username"></span>
                         <button class="btn-text" onclick="logout()">Logout</button>
@@ -26,17 +26,28 @@
     </nav>
 
     <main class="main-content">
-        <div class="container">
-            <div class="page-header">
-                <div>
-                    <h2 class="page-title">Your Projects</h2>
-                    <p class="page-subtitle">Manage and deploy your applications</p>
+        <div class="dashboard-layout">
+            <aside class="project-sidebar">
+                <h3 class="sidebar-title">Projects</h3>
+                <div id="projectList" class="project-list">
+                    <div class="loading">Loading...</div>
                 </div>
-                <button class="btn btn-primary" onclick="showNewProjectModal()">New Project</button>
-            </div>
+            </aside>
 
-            <div id="projectsGrid" class="projects-grid">
-                <div class="loading">Loading projects...</div>
+            <div class="dashboard-main">
+                <div class="container">
+                    <div class="page-header">
+                        <div>
+                            <h2 class="page-title">Your Projects</h2>
+                            <p class="page-subtitle">Manage and deploy your applications</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="showNewProjectModal()">New Project</button>
+                    </div>
+
+                    <div id="projectsGrid" class="projects-grid">
+                        <div class="loading">Loading projects...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>

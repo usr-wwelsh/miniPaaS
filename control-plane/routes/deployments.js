@@ -120,7 +120,7 @@ router.post('/projects/:projectId/deploy', ensureAuthenticated, async (req, res,
   }
 });
 
-router.get('/:id', ensureAuthenticated, async (req, res, next) => {
+router.get('/deployments/:id', ensureAuthenticated, async (req, res, next) => {
   try {
     const result = await db.query(
       `SELECT d.*, p.name as project_name, p.subdomain
@@ -140,7 +140,7 @@ router.get('/:id', ensureAuthenticated, async (req, res, next) => {
   }
 });
 
-router.post('/:id/stop', ensureAuthenticated, async (req, res, next) => {
+router.post('/deployments/:id/stop', ensureAuthenticated, async (req, res, next) => {
   try {
     const deployment = await db.query(
       `SELECT d.* FROM deployments d
@@ -161,7 +161,86 @@ router.post('/:id/stop', ensureAuthenticated, async (req, res, next) => {
   }
 });
 
-router.delete('/:id', ensureAuthenticated, async (req, res, next) => {
+router.post('/deployments/:id/start', ensureAuthenticated, async (req, res, next) => {
+  try {
+    const deployment = await db.query(
+      `SELECT d.*, p.subdomain, p.port FROM deployments d
+      JOIN projects p ON d.project_id = p.id
+      WHERE d.id = $1 AND p.user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+
+    if (deployment.rows.length === 0) {
+      return res.status(404).json({ error: 'Deployment not found' });
+    }
+
+    const dep = deployment.rows[0];
+
+    if (!dep.docker_image_id) {
+      return res.status(400).json({ error: 'No image available for this deployment' });
+    }
+
+    // Check if container exists and is stopped
+    const docker = require('../config/docker');
+    if (dep.docker_container_id) {
+      try {
+        const container = docker.getContainer(dep.docker_container_id);
+        const containerInfo = await container.inspect();
+
+        // If container exists and is not running, start it
+        if (!containerInfo.State.Running) {
+          await container.start();
+          await db.query(
+            'UPDATE deployments SET status = $1, started_at = NOW() WHERE id = $2',
+            ['running', dep.id]
+          );
+          return res.json({ success: true, message: 'Container started' });
+        } else {
+          return res.json({ success: true, message: 'Container already running' });
+        }
+      } catch (containerError) {
+        // Container doesn't exist anymore, need to remove it first then create new one
+        if (containerError.statusCode === 404) {
+          console.log('Container not found, will create new one');
+          try {
+            const oldContainer = docker.getContainer(dep.docker_container_id);
+            await oldContainer.remove({ force: true });
+          } catch (removeError) {
+            // Ignore errors removing non-existent container
+          }
+        } else {
+          throw containerError;
+        }
+      }
+    }
+
+    // Container doesn't exist, create a new one
+    const envVars = await db.query(
+      'SELECT key, value FROM env_vars WHERE project_id = $1',
+      [dep.project_id]
+    );
+
+    const envObject = {};
+    envVars.rows.forEach(row => {
+      envObject[row.key] = decrypt(row.value) || row.value;
+    });
+
+    await deploymentService.startContainer(
+      dep.id,
+      dep.project_id,
+      dep.docker_image_id,
+      dep.subdomain,
+      envObject,
+      dep.port
+    );
+
+    res.json({ success: true, message: 'Container started' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/deployments/:id', ensureAuthenticated, async (req, res, next) => {
   try {
     const deployment = await db.query(
       `SELECT d.* FROM deployments d

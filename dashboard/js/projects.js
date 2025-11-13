@@ -39,6 +39,7 @@ function stopProjectsAutoRefresh() {
 
 function renderProjects(projects) {
     const grid = document.getElementById('projectsGrid');
+    const sidebar = document.getElementById('projectList');
 
     if (projects.length === 0) {
         grid.innerHTML = `
@@ -47,13 +48,30 @@ function renderProjects(projects) {
                 <p>Create your first project to get started</p>
             </div>
         `;
+        sidebar.innerHTML = '<div class="empty-state"><p>No projects</p></div>';
         return;
     }
 
+    // Render sidebar
+    sidebar.innerHTML = projects.map(project => {
+        const status = project.deployments?.[0]?.status || 'idle';
+        const statusClass = status === 'running' ? 'running' :
+                           status === 'stopped' ? 'stopped' :
+                           status === 'failed' ? 'failed' :
+                           status === 'building' || status === 'pending' || status === 'queued' ? 'building' : 'idle';
+        return `
+            <div class="project-list-item" onclick="scrollToProject(${project.id})">
+                <div class="project-status-dot ${statusClass}"></div>
+                <span>${escapeHtml(project.name)}</span>
+            </div>
+        `;
+    }).join('');
+
+    // Render main grid
     grid.innerHTML = projects.map(project => {
         const pipeline = getPipelineStatus(project);
         return `
-        <div class="project-card">
+        <div class="project-card" id="project-${project.id}">
             <div class="project-card-header" onclick="openProjectDetail(${project.id})">
                 <div>
                     <h3 class="project-card-title">${escapeHtml(project.name)}</h3>
@@ -85,6 +103,8 @@ function renderProjects(projects) {
 function getPipelineStatus(project) {
     const latestDeployment = project.deployments?.[0];
     const status = latestDeployment?.status || 'inactive';
+
+    console.log('Project:', project.name, 'Latest deployment:', latestDeployment, 'Status:', status);
 
     let pipeline = {
         github: { status: 'idle', message: 'Repository connected', action: null },
@@ -134,8 +154,28 @@ function getPipelineStatus(project) {
         pipeline.docker.message = 'Image ready';
         pipeline.deploy.status = 'success';
         pipeline.deploy.message = 'Container running';
-        pipeline.traefik.status = 'success';
-        pipeline.traefik.message = 'Routed';
+
+        // Check health status for Traefik
+        const healthStatus = latestDeployment?.health_status;
+        if (healthStatus === 'bad_gateway' || healthStatus === 'connection_refused') {
+            pipeline.traefik.status = 'error';
+            pipeline.traefik.message = 'Bad Gateway';
+            pipeline.traefik.error = 'Port mismatch - check project settings';
+        } else if (healthStatus === 'timeout' || healthStatus === 'unreachable') {
+            pipeline.traefik.status = 'error';
+            pipeline.traefik.message = 'Unreachable';
+            pipeline.traefik.error = 'Cannot connect to container';
+        } else if (healthStatus === 'error') {
+            pipeline.traefik.status = 'error';
+            pipeline.traefik.message = 'Server Error';
+        } else if (healthStatus === 'healthy') {
+            pipeline.traefik.status = 'success';
+            pipeline.traefik.message = 'Routed';
+        } else {
+            // Unknown or checking
+            pipeline.traefik.status = 'success';
+            pipeline.traefik.message = 'Routed';
+        }
     } else if (status === 'stopped') {
         pipeline.github.status = 'success';
         pipeline.github.message = 'Code available';
@@ -145,7 +185,7 @@ function getPipelineStatus(project) {
         pipeline.docker.message = 'Image exists';
         pipeline.deploy.status = 'warning';
         pipeline.deploy.message = 'Stopped';
-        pipeline.deploy.action = { text: 'Start?', fn: `deployProject(${project.id})` };
+        pipeline.deploy.action = { text: 'Start?', fn: `startDeployment(${latestDeployment.id})` };
     }
 
     if (hasNewCommit && (status === 'running' || status === 'stopped')) {
@@ -165,7 +205,7 @@ function renderPipelineStage(title, stage) {
     const statusClass = `status-${stage.status}`;
     const icon = getStageIcon(title, stage.status);
     const actionHtml = stage.action ?
-        `<button class="pipeline-stage-action" onclick="${stage.action.fn}">${stage.action.text}</button>` : '';
+        `<button class="pipeline-stage-action" onclick="event.stopPropagation(); ${stage.action.fn}">${stage.action.text}</button>` : '';
     const errorHtml = stage.error ?
         `<div class="pipeline-error-message">${escapeHtml(stage.error)}</div>` : '';
 
@@ -207,6 +247,18 @@ async function deployProject(projectId) {
         setTimeout(() => loadProjects(), 2000);
     } catch (error) {
         console.error('Error deploying project:', error);
+        showNotification(error.message, 'error');
+    }
+}
+
+async function startDeployment(deploymentId) {
+    try {
+        showNotification('Starting container...', 'info');
+        await api.post(`/api/deployments/${deploymentId}/start`, {});
+        showNotification('Container started successfully', 'success');
+        setTimeout(() => loadProjects(), 2000);
+    } catch (error) {
+        console.error('Error starting container:', error);
         showNotification(error.message, 'error');
     }
 }
@@ -272,6 +324,13 @@ async function createProject(event) {
     } catch (error) {
         console.error('Error creating project:', error);
         showNotification(error.message, 'error');
+    }
+}
+
+function scrollToProject(projectId) {
+    const element = document.getElementById(`project-${projectId}`);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 

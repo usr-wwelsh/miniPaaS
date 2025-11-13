@@ -24,6 +24,7 @@ const setupWebSocketServer = require('./websockets/logStreamer');
 const analyticsCollector = require('./services/analyticsCollector');
 const statusMonitor = require('./services/statusMonitor');
 const healthMonitor = require('./services/healthMonitor');
+const healthChecker = require('./services/healthChecker');
 const logger = require('./services/logger');
 const commitPoller = require('./services/commitPoller');
 
@@ -99,6 +100,7 @@ setupWebSocketServer(server);
 analyticsCollector.startStatsCollection();
 statusMonitor.start();
 healthMonitor.start();
+healthChecker.start(30000); // Check health every 30 seconds
 commitPoller.start(60000);
 
 logger.info('miniPaaS Control Plane initializing...');

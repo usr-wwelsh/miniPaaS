@@ -11,7 +11,9 @@ router.get('/', ensureAuthenticated, async (req, res, next) => {
     const result = await db.query(
       `SELECT p.*,
         (SELECT status FROM deployments WHERE project_id = p.id ORDER BY created_at DESC LIMIT 1) as latest_status,
-        (SELECT COUNT(*) FROM deployments WHERE project_id = p.id) as deployment_count
+        (SELECT COUNT(*) FROM deployments WHERE project_id = p.id) as deployment_count,
+        (SELECT json_agg(d ORDER BY d.created_at DESC)
+         FROM (SELECT * FROM deployments WHERE project_id = p.id ORDER BY created_at DESC LIMIT 5) d) as deployments
       FROM projects p
       WHERE p.user_id = $1
       ORDER BY p.updated_at DESC`,
