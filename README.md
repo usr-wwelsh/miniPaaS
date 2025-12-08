@@ -58,7 +58,7 @@ graph LR
 ## Quick Start
 
 ```bash
-git clone https://github.com/wedsmoker/miniPaaS.git
+git clone https://github.com/usr-wwelsh/miniPaaS.git
 cd miniPaaS
 
 # Create GitHub OAuth app at https://github.com/settings/developers
